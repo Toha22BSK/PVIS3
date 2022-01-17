@@ -29,9 +29,12 @@ def readCSV():
 def formatOutput(data):
     result = ""
     for element in data:
-        lenStr = (10 -len(str(element))) // 2
-        result+= " " * lenStr + str(element) + " " * lenStr
-    return result
+        lenStr = 8 - len(str(element))
+        if lenStr < 2:
+            result+= "%.4f" % (element) 
+        else:
+            result+= str(element)
+    return result + " " * lenStr
 
 def saveResult(data):
     centroids = data["centroids"]
