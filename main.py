@@ -31,10 +31,10 @@ def formatOutput(data):
     for element in data:
         lenStr = 8 - len(str(element))
         if lenStr < 2:
-            result+= "%.4f" % (element) 
+            result+= "%.4f" % (element) + " " * 2
         else:
-            result+= str(element)
-    return result + " " * lenStr
+            result+= str(element) + " " * lenStr
+    return result
 
 def saveResult(data):
     centroids = data["centroids"]
