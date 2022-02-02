@@ -4,6 +4,7 @@ import math, random
 import matplotlib.pyplot as plt
 from datetime import datetime
 
+# Обявление перменных
 K_MEANS_LAUNCH = 20000
 CLASS_INDEX = 5
 FILTER_DIM = (CLASS_INDEX, )
@@ -16,7 +17,7 @@ data_MAP = {
 }
 dataLen = len(data_MAP)
 
-
+# Считываем данные базы
 def readCSV():
     dataKnowledge = []
     with open("Knowledge.csv") as f:
@@ -26,6 +27,7 @@ def readCSV():
        value[-1] = data_MAP[value[-1]]  
     return numpy.array(dataKnowledge, dtype=float).tolist()
 
+# Преобразовываем полученные данные в табличный формат для вывода в файл
 def formatOutput(data):
     result = ""
     for element in data:
@@ -36,6 +38,7 @@ def formatOutput(data):
             result+= str(element) + " " * lenStr
     return result
 
+# Сохраняем результат 
 def saveResult(data):
     centroids = data["centroids"]
     clusters = data["clusters"]
@@ -51,12 +54,12 @@ def saveResult(data):
                 fd.write("  " + formatOutput(x) + "\n")
             fd.write("\n\n")
 
-
+# Нахождения центра кластера для передаваемых точек
 def distance(x, y):
     dist = sum([(value - y[i]) ** 2 for i, value in enumerate(x) if i not in FILTER_DIM])
     return math.sqrt(dist)
 
-
+# Высчитываем среднее значение
 def average(data):
     dim = len(data[0])
     avg_sum = [0.0] * dim
@@ -68,15 +71,14 @@ def average(data):
         avg_sum[i] /= len(data)
     return avg_sum
 
-
-
+# Генератор рандомных чисел
 def addRandom(a, b, N):
     result = set()
     while len(result) != N:
         result.add(random.randint(a, b))
     return result
 
-
+# Минимизиурем суммарное квадратичное отклонение точек кластеров от центров этих кластеров с помощью алгоритма k_means
 def k_means(dataset, k, max_iteration=1000, tolerance=0.0001):
     # выбираем начальные центры кластеров
     centroids = [dataset[i] for i in addRandom(0, len(dataset) - 1, k)]
@@ -107,7 +109,6 @@ def k_means(dataset, k, max_iteration=1000, tolerance=0.0001):
     return centroids, clusters
 
 
-# Индекс Маулика Бундефая
 def Maulik_Bandoypadhyay_index(centroids, clusters):
     centroidsLen = len(centroids)
     dim = len(centroids[0])
@@ -123,13 +124,13 @@ def Maulik_Bandoypadhyay_index(centroids, clusters):
     for i in range(dim):
         X_centre[i] /= N
     
-    #нахождение сумма расстояний от каждого элемента до центрального E1
+    #нахождение сумма внутрикластернных расстояний
     Sum_distance = 0
     for c in clusters:
         for p in c:
             Sum_distance += distance(p, X_centre)
 
-    #нахождение суммы расстояний между центрами кластеров Ec
+    #нахождение суммы расстояний от центра множества до каждого элемента
     Sum_distance_in_clusters = 0
     for cluster in range(centroidsLen):
         for x in clusters[cluster]:
@@ -156,17 +157,17 @@ def main_mpi():
     rank = comm.Get_rank()
     
     if rank == 0:
-        ds = readCSV()
-        reqs = [comm.isend(ds, i, tag=1) for i in range(1, size)]
+        data = readCSV()
+        reqs = [comm.isend(data, i, tag=1) for i in range(1, size)]
         for r in reqs:
             r.wait()
     else:
         req = comm.irecv(source=0, tag=1)
-        ds = req.wait()
+        data = req.wait()
 
     result = None
     for _ in range(K_MEANS_LAUNCH):
-        centroids, clusters = k_means(ds, dataLen, max_iteration=1000)
+        centroids, clusters = k_means(data, dataLen, max_iteration=1000)
         index = Maulik_Bandoypadhyay_index(centroids, clusters)
 
         # MB-index чем больше, тем лучше
@@ -181,10 +182,10 @@ def main_mpi():
     index_max = comm.bcast(index_max, root=0)
 
     if index_max == result["mb-index"]:
-        print(f"Saving cluster in process {rank}")
+        print(f"Save in process {rank}")
         saveResult(result)
 
-    print(f"process {rank} exit.")
+    print(f"process {rank} completed.")
     comm.barrier()
     MPI.Finalize()
     
