@@ -150,11 +150,11 @@ def Maulik_Bandoypadhyay_index(centroids, clusters):
 
     return Maulik_Bandoypadhyay
 
-
 def main_mpi():
     comm = MPI.COMM_WORLD
     size = comm.Get_size()
     rank = comm.Get_rank()
+    result = None
     
     if rank == 0:
         data = readCSV()
@@ -165,12 +165,9 @@ def main_mpi():
         req = comm.irecv(source=0, tag=1)
         data = req.wait()
 
-    result = None
     for _ in range(K_MEANS_LAUNCH):
         centroids, clusters = k_means(data, dataLen, max_iteration=1000)
         index = Maulik_Bandoypadhyay_index(centroids, clusters)
-
-        # MB-index чем больше, тем лучше
         if result is None or index > result["mb-index"]:
             result = {
                 "mb-index": index,
@@ -184,7 +181,7 @@ def main_mpi():
     if index_max == result["mb-index"]:
         print(f"Save in process {rank}")
         saveResult(result)
-
+        
     print(f"process {rank} completed.")
     comm.barrier()
     MPI.Finalize()
